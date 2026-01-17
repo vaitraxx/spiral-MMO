@@ -1,17 +1,10 @@
-// ===================================
-// FEAR — COMPLETE STABLE BUILD
-// Replace entire file every time
-// ===================================
+// =================================================
+// SPIRAL — TOTAL SIMULATION (STATEMENT 3)
+// Fear + Peace + Clutter + Horror + Presence
+// =================================================
 
-const APP_VERSION = "0.2.0";
-
-// ---------- USER & SESSION ----------
-let USER_ID = localStorage.getItem("fear_user_id");
-if (!USER_ID) {
-  USER_ID = "user_" + Math.random().toString(36).slice(2, 10);
-  localStorage.setItem("fear_user_id", USER_ID);
-}
-const SESSION_SEED = Math.floor(Math.random() * 1000000);
+// ---------- SESSION ----------
+const SESSION_SEED = Math.floor(Math.random() * 999999);
 
 // ---------- CANVAS ----------
 const canvas = document.getElementById("canvas");
@@ -24,111 +17,157 @@ function resize() {
 resize();
 window.addEventListener("resize", resize);
 
-// ---------- WORLD STATE ----------
+// ---------- WORLD ----------
 const WORLD = {
   chaos: 0,
-  pulse: 0
+  pulse: 0,
+  tick: 0
 };
 
-// ---------- INPUT ----------
-window.addEventListener("keydown", () => {
-  WORLD.chaos = Math.min(WORLD.chaos + 0.3, 3);
-});
+// ---------- HANDS ----------
+const handPaths = Array.from({ length: 9 }, (_, i) => `images/hand${i+1}.png`);
+const hands = [];
 
-// ---------- SPOOKY HANDS ----------
-const handImages = [
-  "images/hand1.png",
-  "images/hand2.png"
-];
+function spawnHand() {
+  const img = new Image();
+  img.src = handPaths[Math.floor(Math.random() * handPaths.length)];
 
-let handImg = new Image();
-let handActive = false;
-let handAlpha = 0;
-let handX = 0;
-let handY = 0;
-let currentWhisper = "";
-
-const whispers = [
-  "sin is necessary to feel alive ❤️",
-  "to live is to touch the forbidden",
-  "purity without desire is death",
-  "even fear wants to be loved"
-];
-
-function summonHand() {
-  const src = handImages[Math.floor(Math.random() * handImages.length)];
-  handImg.src = src;
-
-  handX = Math.random() * canvas.width * 0.7;
-  handY = Math.random() * canvas.height * 0.7;
-
-  handAlpha = 0;
-  handActive = true;
-  currentWhisper = whispers[Math.floor(Math.random() * whispers.length)];
-
-  setTimeout(() => {
-    handActive = false;
-  }, 4000 + Math.random() * 3000);
+  hands.push({
+    img,
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    scale: 0.3 + Math.random() * 0.7,
+    alpha: 0,
+    life: 300 + Math.random() * 300,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3
+  });
 }
 
-// random apparition
+// spawn hands endlessly
 setInterval(() => {
-  if (Math.random() < 0.35) summonHand();
-}, 9000);
+  if (hands.length < 12) spawnHand();
+}, 1500);
 
-// ---------- SPIRAL ----------
-let angleOffset = Math.random() * Math.PI * 2;
+// ---------- SPIRALS ----------
+const spirals = [];
+const COLORS = [
+  "#1a1a2e", "#0f3460", "#53354a",
+  "#2c2c2c", "#16213e", "#3a0ca3"
+];
 
-function drawSpiral() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+for (let i = 0; i < 6; i++) {
+  spirals.push({
+    angle: Math.random() * Math.PI * 2,
+    speed: 0.0005 + Math.random() * 0.002,
+    step: 0.25 + Math.random() * 0.4,
+    color: COLORS[i % COLORS.length],
+    ox: (Math.random() - 0.5) * 500,
+    oy: (Math.random() - 0.5) * 500
+  });
+}
 
-  WORLD.pulse = Math.abs(Math.sin(Date.now() * 0.002));
+// ---------- TEXT DUST ----------
+const dust = [];
+const WORDS = [
+  "sin", "desire", "fear", "peace", "touch",
+  "alive", "void", "breath", "chaos", "love"
+];
 
-  const red = 120 + (SESSION_SEED % 80) + WORLD.pulse * 80;
-  const green = 10 + WORLD.chaos * 20;
-  const blue = 10;
+window.addEventListener("keydown", (e) => {
+  WORLD.chaos += 0.2;
 
-  ctx.strokeStyle = `rgb(${red}, ${green}, ${blue})`;
-  ctx.lineWidth = 1 + WORLD.chaos;
+  const text = e.key.length === 1
+    ? e.key
+    : WORDS[Math.floor(Math.random() * WORDS.length)];
 
-  ctx.beginPath();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
+  dust.push({
+    text,
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 1.5,
+    vy: -0.5 - Math.random(),
+    alpha: 1,
+    size: 18 + Math.random() * 22
+  });
+});
 
-  for (let i = 0; i < 650; i++) {
-    const angle = i * 0.15 + angleOffset;
-    const radius = i * 0.45;
-    const x = cx + Math.cos(angle) * radius;
-    const y = cy + Math.sin(angle) * radius;
-    ctx.lineTo(x, y);
-  }
-  ctx.stroke();
+// ---------- DRAW ----------
+function drawSpirals() {
+  spirals.forEach(s => {
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1;
 
-  angleOffset += 0.002;
-  WORLD.chaos *= 0.96;
+    ctx.beginPath();
+    const cx = canvas.width / 2 + s.ox;
+    const cy = canvas.height / 2 + s.oy;
 
-  // ---------- HAND ----------
-  if (handActive && handImg.complete) {
-    handAlpha = Math.min(handAlpha + 0.01, 0.6);
-    ctx.globalAlpha = handAlpha;
-    ctx.drawImage(handImg, handX, handY, 220, 220);
+    for (let i = 0; i < 800; i++) {
+      const a = i * 0.14 + s.angle;
+      const r = i * s.step;
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    }
+
+    ctx.stroke();
+    s.angle += s.speed + WORLD.chaos * 0.00005;
+  });
+}
+
+function drawHands() {
+  for (let i = hands.length - 1; i >= 0; i--) {
+    const h = hands[i];
+
+    h.alpha += 0.01;
+    h.x += h.vx;
+    h.y += h.vy;
+    h.life--;
+
+    ctx.globalAlpha = Math.min(h.alpha, 0.7);
+    if (h.img.complete) {
+      ctx.drawImage(
+        h.img,
+        h.x,
+        h.y,
+        300 * h.scale,
+        300 * h.scale
+      );
+    }
     ctx.globalAlpha = 1;
 
-    ctx.fillStyle = "rgba(255,120,120,0.75)";
-    ctx.font = "14px serif";
-    ctx.fillText(currentWhisper, handX, handY - 10);
+    if (h.life <= 0) hands.splice(i, 1);
   }
+}
 
-  // ---------- UI ----------
-  ctx.fillStyle = "rgba(255,80,80,0.5)";
-  ctx.font = "12px monospace";
-  ctx.fillText("FEAR v" + APP_VERSION, 20, 20);
-  ctx.fillText("id: " + USER_ID, 20, 36);
+function drawDust() {
+  for (let i = dust.length - 1; i >= 0; i--) {
+    const d = dust[i];
+    d.x += d.vx;
+    d.y += d.vy;
+    d.alpha -= 0.02;
+
+    ctx.fillStyle = `rgba(200,200,200,${d.alpha})`;
+    ctx.font = `${d.size}px serif`;
+    ctx.fillText(d.text, d.x, d.y);
+
+    if (d.alpha <= 0) dust.splice(i, 1);
+  }
 }
 
 // ---------- LOOP ----------
 function animate() {
-  drawSpiral();
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  WORLD.pulse = Math.abs(Math.sin(Date.now() * 0.002));
+  WORLD.tick++;
+
+  drawSpirals();
+  drawHands();
+  drawDust();
+
+  WORLD.chaos *= 0.96;
+
   requestAnimationFrame(animate);
 }
+
 animate();
